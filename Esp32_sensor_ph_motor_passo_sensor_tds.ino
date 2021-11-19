@@ -1,3 +1,8 @@
+//    Connfigurar LEDs
+int pino_verde = 7;
+int pino_vermelho = 5;
+int pino_amarelo = 6;
+
 //    Configurações do Sensor Ultrassônico
 #include <Ultrasonic.h>
 #define pino_trigger 3
@@ -27,9 +32,12 @@ void setup()
   myStepper1.setSpeed(60);
   //myStepper2.setSpeed(60);
   pinMode(TdsSensorPin,INPUT); 
+  pinMode(pino_verde, OUTPUT);
+  pinMode(pino_vermelho, OUTPUT);
+  pinMode(pino_amarelo, OUTPUT);
 }
 
-
+  
 void loop()
 { 
   //Le as informações em cm do sensor ultrassônico
@@ -38,16 +46,16 @@ void loop()
   cmMsec = ultrasonic.convert(microsec, Ultrasonic::CM);
 
   //Calculo do TDS
-  float valor = (analogRead(TdsSensorPin)* (float)VREF/ 1024.0)/(1.0+0.02(temperature-25.0));
-  float valorc3 = valorvalorvalor;
-  float valorq2 = valorvalor;
-  float valorfinal = ((valorc3 * 133.42)-(255.86valorq2)+(857.39valor))0.5;
+  float valor = (analogRead(TdsSensorPin)* (float)VREF/ 1024.0)/(1.0+0.02*(temperature-25.0));
+  float valorc3 = valor*valor*valor;
+  float valorq2 = valor*valor;
+  float valorfinal = ((valorc3 * 133.42)-(255.86*valorq2)+(857.39*valor))*0.5;
 
   //Calculo do PH
   float valorph = analogRead(analogInPin);
-  float pHVol=(float)valorph5.0/1024;
+  float pHVol=(float)valorph*5.0/1024;
   float phValue = -5.70 * pHVol + calibragem;
-
+    
   Serial.print("TDS = ");
   Serial.println(valorfinal);
   Serial.print("PH = ");
@@ -60,11 +68,27 @@ void loop()
   if(cmMsec < distanciaminima){
     for (int k = 0; k<=2; k++){
       myStepper1.step(682); 
+      digitalWrite(pino_verde, HIGH);
     }
    }
    else{
       //myStepper1.step(682);
       //myStepper2.step(682);
+      digitalWrite(pino_verde, LOW);
+   }
+   
+
+   if(valorfinal >1000){
+    digitalWrite(pino_vermelho, HIGH);
+   }
+   else{
+    digitalWrite(pino_vermelho, LOW);
+   }
+   
+   if(phValue > 9.5 || phValue < 6.0){
+    digitalWrite(pino_amarelo, HIGH);
+   }else{
+    digitalWrite(pino_amarelo, LOW);
    }
 
    delay(2000);

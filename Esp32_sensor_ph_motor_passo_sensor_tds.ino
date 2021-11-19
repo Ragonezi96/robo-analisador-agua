@@ -7,8 +7,8 @@ Ultrasonic ultrasonic(pino_trigger, pino_echo);
 //    Configurações do Motor de Passo
 #include <Stepper.h> 
 const int stepsPerRevolution = 500; 
-Stepper myStepper1(stepsPerRevolution, 6,7,8,15); //motor direito
-Stepper myStepper2(stepsPerRevolution, 3,1,22,23);//motor esquerdo
+Stepper myStepper(stepsPerRevolution, 6,7,8,15); 
+
 //    Configurações do Sensor de PH
 float calibragem = 20.25;  //cValor de calibragem
 const int analogInPin = 36;
@@ -30,8 +30,7 @@ float averageVoltage = 0,tdsValue = 0,temperature = 25;
 void setup()
 {
   Serial.begin(9600);
-  myStepper1.setSpeed(100);
-  myStepper2.setSpeed(100);
+  myStepper.setSpeed(100);
   pinMode(TdsSensorPin,INPUT); 
 }
 
@@ -62,8 +61,8 @@ void loop()
     analogBufferTemp[copyIndex]= analogBuffer[copyIndex];
     averageVoltage = getMedianNum(analogBufferTemp,SCOUNT) * (float)VREF/ 1024.0; 
     float compensationCoefficient=1.0+0.02*(temperature-25.0);
-    float compensationVoltage=averageVoltage/compensationCoefficient;
-    tdsValue=(133.42*compensationVoltage*compensationVoltage*compensationVoltage - 255.86*compensationVoltage*compensationVoltage + 857.39*compensationVoltage)*0.5;
+    float compensationVolatge=averageVoltage/compensationCoefficient;
+    tdsValue=(133.42*compensationVolatge*compensationVolatge*compensationVolatge - 255.86*compensationVolatge*compensationVolatge + 857.39*compensationVolatge)*0.5;
     
     Serial.print("TDS:");
     Serial.print(tdsValue,0);
@@ -98,25 +97,15 @@ void loop()
     Serial.println(phValue);
     Serial.print("Distancia em cm: ");
     Serial.println(cmMsec);
-    /*
-    função de envios para a nuvem a ser desenvolvida.
-    */
 
     if(cmMsec < 10){
-      while (cmMsec <= 10){
-        //girar um dos motores 
-        myStepper1.step(512); // aproximadamente 90 graus
-        delay(500);
-        cmMsec = ultrasonic.convert(microsec, Ultrasonic::CM);//realiza a leitura novamente
+      for (int k = 0; k<=2; k++){
+        myStepper.step(682); 
       }
-        //myStepper.step(2046);
+      //myStepper.step(2046);
     }
     else{
-      /* Função incompleta para girar os dois motores e continuar andando normalmente.
-      enquanto o motor roda da tempo de fazer uma nova medida
-      */
-      myStepper1.step(2046);
-      myStepper2.step(2046);
+      myStepper.step(2046);
     }
 
     delay(2000);

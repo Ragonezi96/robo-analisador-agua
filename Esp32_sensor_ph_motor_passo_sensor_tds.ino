@@ -1,3 +1,17 @@
+//Configuração wifi e MQTT
+#include <WiFi.h>
+#include <PubSubClient.h>
+#define TOPICO_MONITORAMENTO   "topico_monitoramento"
+#define ID_MQTT  "esp32_mqtt"     //id mqtt (para identificação de sessão)
+const char* SSID = " "; // SSID / nome da rede WI-FI 
+const char* PASSWORD = " "; // Senha da rede WI-FI 
+const char* BROKER_MQTT = "ec2-52-14-128-203.us-east-2.compute.amazonaws.com"; //URL do broker MQTT na AWS
+int BROKER_PORT = 1234; // Porta do Broker MQTT
+
+//Variáveis e objetos globais
+WiFiClient espClient; // Cria o objeto espClient
+PubSubClient MQTT(espClient); // Instancia o Cliente MQTT passando o objeto espClient
+
 //    Connfigurar LEDs
 int pino_verde = 7;
 int pino_vermelho = 5;
@@ -36,6 +50,77 @@ void setup()
   pinMode(pino_vermelho, OUTPUT);
   pinMode(pino_amarelo, OUTPUT);
 }
+
+
+/* Função: inicializa e conecta-se na rede WI-FI desejada
+*  Parâmetros: nenhum
+*  Retorno: nenhum
+*/
+void initWiFi(void) 
+{
+    delay(10);
+    Serial.println("------Conexao WI-FI------");
+    Serial.print("Conectando-se na rede: ");
+    Serial.println(SSID);
+    Serial.println("Aguarde");
+      
+    reconnectWiFi();
+}
+ 
+/* Função: inicializa parâmetros de conexão MQTT(endereço do 
+ *         broker, porta e seta função de callback)
+ * Parâmetros: nenhum
+ * Retorno: nenhum
+ */
+void initMQTT(void) 
+{
+    MQTT.setServer(BROKER_MQTT, BROKER_PORT);   //informa qual broker e porta deve ser conectado
+    MQTT.setCallback(mqtt_callback);            //atribui função de callback (função chamada quando qualquer informação de um dos tópicos subescritos chega)
+}
+/* Função: verifica o estado das conexões WiFI e ao broker MQTT. 
+ *         Em caso de desconexão (qualquer uma das duas), a conexão
+ *         é refeita.
+ * Parâmetros: nenhum
+ * Retorno: nenhum
+ */
+void VerificaConexoesWiFIEMQTT(void)
+{
+    if (!MQTT.connected()) 
+        reconnectMQTT(); //se não há conexão com o Broker, a conexão é refeita
+      
+     reconnectWiFi(); //se não há conexão com o WiFI, a conexão é refeita
+}
+ 
+/* Função: reconecta-se ao WiFi
+ * Parâmetros: nenhum
+ * Retorno: nenhum
+ */
+void reconnectWiFi(void) 
+{
+    //se já está conectado a rede WI-FI, nada é feito. 
+    //Caso contrário, são efetuadas tentativas de conexão
+    if (WiFi.status() == WL_CONNECTED)
+        return;
+          
+    WiFi.begin(SSID, PASSWORD); // Conecta na rede WI-FI
+      
+    while (WiFi.status() != WL_CONNECTED) 
+    {
+        delay(100);
+        Serial.print(".");
+    }
+    
+    Serial.println();
+    Serial.print("Conectado com sucesso na rede ");
+    Serial.print(SSID);
+    Serial.println("IP obtido: ");
+    Serial.println(WiFi.localIP());
+}
+void initMQTT(void);
+void reconnectMQTT(void);
+void reconnectWiFi(void);
+void VerificaConexoesWiFIEMQTT(void);
+ 
 
   
 void loop()
@@ -90,6 +175,9 @@ void loop()
    }else{
     digitalWrite(pino_amarelo, LOW);
    }
+  
+   payload = valorfinal //em desenvolvimento, o objeto json precisa ser criado
+   MQTT.publish(TOPICO_MONITORAMENTO, payload);
 
    delay(2000);
 }

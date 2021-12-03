@@ -5,14 +5,16 @@
 //    Configurações MQTT
 #define TOPICO_PUBLISH_PH  "sensor_ph"
 #define TOPICO_PUBLISH_TDS "sensor_tds"
+#define TOPICO_PUBLISH_FINAL "final"
+#define TOPICO_PUBLISH_DISTANCIA "distancia"
 
 #define ID_MQTT  "projeto_qualidade_agua_SE" 
 
-const char* SSID     = "cleconde@";
-const char* PASSWORD = "67142812";
+const char* SSID     = "CLARO3042G";
+const char* PASSWORD = "36324320";
 
-const char* BROKER_MQTT = "test.mosquitto.org";
-int BROKER_PORT = 1883;
+const char* BROKER_MQTT = "52.14.128.203";
+int BROKER_PORT = 1234;
 
 WiFiClient espClient;
 PubSubClient MQTT(espClient);
@@ -41,16 +43,24 @@ int distanciaminima = 10;
 #include <Stepper.h> 
 const int stepsPerRevolution = 500; 
 Stepper myStepper1(stepsPerRevolution, 19,18,5,17);  //motor direito
-//Stepper myStepper2(stepsPerRevolution, 3,1,22,23);//motor esquerdo
+Stepper myStepper2(stepsPerRevolution, 23,22,16,21);  //motor esquerdo
 
 //    Configurações do Sensor de PH
-float calibragem = 20.25;  //Valor de calibragem
-const int analogInPin = 32;
+int contph = 0;
+float vetph [5];
+float finalph = 0;
+float calibragem = 85;  //Valor de calibragem
+const int analogInPin = 36;
 
 //    Configurações do Sensor TDS
-#define TdsSensorPin 26
+int conttds = 0;
+float vettds [5];
+float finaltds = 0;
+#define TdsSensorPin 33
 #define VREF 5.0  // analog reference voltage(Volt) of the ADC
 float averageVoltage = 0,tdsValue = 0,temperature = 25;
+
+int begin = 0;
 
 //MQTT==================================================================
 
@@ -141,7 +151,7 @@ void setup()
   delay(1000);
   
   myStepper1.setSpeed(30);
-  //myStepper2.setSpeed(60);
+  myStepper2.setSpeed(30);
   pinMode(TdsSensorPin,INPUT); 
   pinMode(pino_verde, OUTPUT);
   pinMode(pino_vermelho, OUTPUT);
@@ -157,6 +167,7 @@ void setup()
 void loop()
 { 
   VerificaConexoesWiFIEMQTT();
+  begin++;
   
   //Le as informações em cm do sensor ultrassônico
   digitalWrite(pino_trigger, LOW);
@@ -174,50 +185,82 @@ void loop()
   float valorq2 = valor*valor;
   float valorfinal = ((valorc3 * 133.42)-(255.86*valorq2)+(857.39*valor))*0.5;
 
+  vettds[conttds] = valorfinal;
+  conttds++;
+  
+  if(conttds == 4){
+    finaltds = 0;
+    for(int ctds=0;ctds<5;ctds++){
+      finaltds = finaltds + vettds[ctds];
+    }
+    finaltds = finaltds / 5;
+    conttds = 0;
+  }
+  
+
   //Calculo do PH
   float valorph = analogRead(analogInPin);
   float pHVol=(float)valorph*5.0/1024;
   float phValue = -5.70 * pHVol + calibragem;
-    
+  
+  vetph[contph] = phValue;
+  contph++;
+  
+  if(contph == 4){
+    finalph = 0;
+    for(int cph=0;cph<5;cph++){
+      finalph = finalph + vetph[cph];
+    }
+    finalph = finalph / 5;
+    contph = 0;
+  }
+
+  
+  //Impressão de resultados 
   Serial.print("TDS = ");
-  Serial.println(valorfinal);
+  Serial.println(finaltds);
   Serial.print("PH = ");
-  Serial.println(phValue);
+  Serial.println(finalph);
   Serial.print("Distancia em cm: ");
   Serial.println(distanciaCm);
-  /*
-  função de envios para a nuvem a ser desenvolvida.
-  */
-  if(distanciaCm < distanciaminima){
+
+
+  //Calculo do motor 
+  if(begin > 4){
+    if(distanciaCm < distanciaminima){
     for (int k = 0; k<=2; k++){
       myStepper1.step(682); 
       digitalWrite(pino_verde, HIGH);
     }
    }
    else{
-      //myStepper1.step(682);
-      //myStepper2.step(682);
+    for (int k = 0; k<=2; k++){
+      myStepper2.step(682);
       digitalWrite(pino_verde, LOW);
+    }
    }
-   
+  }
 
-   if(valorfinal >1000){
-    MQTT.publish(TOPICO_PUBLISH_TDS,"TDS Alto");
-    digitalWrite(pino_vermelho, HIGH);
-   }
-   else{
-    MQTT.publish(TOPICO_PUBLISH_TDS,"TDS Baixo");
-    digitalWrite(pino_vermelho, LOW);
-   }
-   
-   if(phValue > 9.5 || phValue < 6.0){
-    MQTT.publish(TOPICO_PUBLISH_PH,"PH Alto");
-    digitalWrite(pino_amarelo, HIGH);
-   }else{
-    MQTT.publish(TOPICO_PUBLISH_PH,"PH Baixo");
-    digitalWrite(pino_amarelo, LOW);
-   }
+  //Impressão no aplicativo
+  char tempString1 [8];
+  dtostrf(finaltds,1,2,tempString1);
+  MQTT.publish(TOPICO_PUBLISH_TDS,tempString1);
 
-   MQTT.loop();
-   delay(2000);
+  char tempString2 [8];
+  dtostrf(finalph,1,2,tempString2);
+  MQTT.publish(TOPICO_PUBLISH_PH,tempString2);
+
+  char tempString3 [8];
+  dtostrf(distanciaCm,1,2,tempString3);
+  MQTT.publish(TOPICO_PUBLISH_DISTANCIA,tempString3);
+  
+
+  if(finalph < 9.5 && finalph > 6.0 && finaltds < 1000){
+    MQTT.publish(TOPICO_PUBLISH_FINAL,"Água Permitida para Consumo");
+  }else{
+    MQTT.publish(TOPICO_PUBLISH_FINAL,"Água Não Permitida para Consumo");
+  }
+
+  MQTT.loop();
+  delay(2000);
 }

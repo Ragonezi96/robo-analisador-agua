@@ -156,10 +156,8 @@ void setup()
   pinMode(pino_verde, OUTPUT);
   pinMode(pino_vermelho, OUTPUT);
   pinMode(pino_amarelo, OUTPUT);
-  
   pinMode(pino_trigger, OUTPUT);
   pinMode(pino_echo, INPUT);
-
   initWiFi();
   initMQTT();
 }
